@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Buckwheat Sort">
+<meta name="theme-color" content="#faf7f2">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>Buckwheat Sort</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #faf7f2; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  #app { width: 100%; height: 100%; max-width: 430px; margin: 0 auto; display: flex; flex-direction: column; background: #faf7f2; position: relative; }
+
+  /* HUD */
+  #hud { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px 8px; flex-shrink: 0; }
+  .hud-stat { text-align: center; min-width: 52px; }
+  .hud-val { font-size: 20px; font-weight: 600; color: #2c1f0e; letter-spacing: -0.5px; }
+  .hud-lbl { font-size: 10px; color: #a0896a; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 1px; }
+  #hud-mid { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  #level-pill { background: #ede8df; border-radius: 20px; padding: 4px 14px; font-size: 12px; font-weight: 500; color: #7a6448; }
+  #lang-btn { background: none; border: 1px solid #d8cfc2; border-radius: 10px; padding: 2px 10px; font-size: 11px; color: #a0896a; cursor: pointer; letter-spacing: 0.05em; font-weight: 600; }
+  #lang-btn:active { background: #ede8df; }
+
+  /* Timer */
+  #timer-row { padding: 0 18px 6px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  #timer-track { flex: 1; height: 3px; background: #e8e0d4; border-radius: 2px; overflow: hidden; }
+  #timer-fill { height: 100%; width: 100%; background: #7a9e6a; border-radius: 2px; transition: width 0.25s linear, background 0.4s; }
+  #timer-num { font-size: 12px; color: #a0896a; min-width: 30px; text-align: right; }
+  #back-btn { font-size: 15px; color: #a0896a; text-decoration: none; border: 1px solid #d8cfc2; border-radius: 10px; padding: 1px 9px; line-height: 20px; }
+  #back-btn:active { background: #ede8df; }
+  .embedded #back-btn { display: none; }
+  #timer-btn { font-size: 11px; color: #a0896a; background: none; border: 1px solid #d8cfc2; border-radius: 10px; padding: 3px 9px; cursor: pointer; white-space: nowrap; }
+
+  /* Board */
+  #board-wrap { flex: 1; position: relative; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+  /* Drop zones */
+  #zones { display: flex; flex-shrink: 0; height: 88px; border-top: 1px solid #e8e0d4; }
+  .zone { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; transition: background 0.15s; cursor: default; }
+  #zone-good { border-right: 1px solid #e8e0d4; }
+  .zone-icon { font-size: 30px; line-height: 1; transition: transform 0.15s; }
+  .zone-count { font-size: 13px; font-weight: 500; }
+  #zone-good .zone-count { color: #5a8a4a; }
+  #zone-bad  .zone-count { color: #c05a2a; }
+  .zone.over { background: rgba(122,158,106,0.10); }
+  #zone-bad.over { background: rgba(192,90,42,0.09); }
+  .zone.over .zone-icon { transform: scale(1.15); }
+
+  /* Overlay */
+  #overlay { position: absolute; inset: 0; background: #faf7f2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 32px 24px; z-index: 10; }
+  #ov-emoji { font-size: 52px; }
+  #ov-title { font-size: 26px; font-weight: 600; color: #2c1f0e; text-align: center; }
+  #ov-body  { font-size: 14px; color: #7a6448; text-align: center; line-height: 1.7; white-space: pre-line; }
+  #ov-btn   { margin-top: 4px; padding: 13px 36px; background: #2c1f0e; color: #faf7f2; border: none; border-radius: 24px; font-size: 15px; font-weight: 500; cursor: pointer; transition: transform 0.1s, opacity 0.1s; }
+  #ov-btn:active { transform: scale(0.96); opacity: 0.85; }
+
+  /* Leaderboard */
+  #lb-wrap { width: 100%; max-width: 260px; }
+  .lb-row { display: flex; justify-content: space-between; font-size: 13px; color: #7a6448; padding: 3px 0; border-bottom: 1px solid #ede8df; }
+  .lb-row:last-child { border-bottom: none; }
+  .lb-row span:last-child { font-weight: 500; color: #2c1f0e; }
+</style>
+</head>
+<body>
+<script>try { if (window.self !== window.top) document.body.classList.add('embedded'); } catch (e) { document.body.classList.add('embedded'); }</script>
+<div id="app">
+  <div id="hud">
+    <div class="hud-stat"><div class="hud-val" id="sc">0</div><div class="hud-lbl" id="lbl-score">очки</div></div>
+    <div id="hud-mid">
+      <div id="level-pill">рівень 1</div>
+      <button id="lang-btn" onclick="switchLang()">EN</button>
+    </div>
+    <div class="hud-stat"><div class="hud-val" id="lft">—</div><div class="hud-lbl" id="lbl-left">лишилось</div></div>
+  </div>
+  <div id="timer-row">
+    <a id="back-btn" href="index.html?menu=1" aria-label="Menu">←</a>
+    <button id="timer-btn" onclick="toggleTimer()">⏱ таймер вкл</button>
+    <div id="timer-track"><div id="timer-fill"></div></div>
+    <div id="timer-num">—</div>
+  </div>
+  <div id="board-wrap">
+    <canvas id="c"></canvas>
+    <div id="overlay">
+      <div id="ov-emoji">🌾</div>
+      <div id="ov-title">Buckwheat Sort</div>
+      <div id="ov-body"></div>
+      <button id="ov-btn"></button>
+      <div id="lb-wrap"></div>
+    </div>
+  </div>
+  <div id="zones">
+    <div class="zone" id="zone-good"><div class="zone-icon">🥣</div><div class="zone-count" id="gc">0</div></div>
+    <div class="zone" id="zone-bad" ><div class="zone-icon">🗑️</div><div class="zone-count" id="bc">0</div></div>
+  </div>
+</div>
+
+<script>
+// ─── Canvas ─────────────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+let W = 0, H = 0;
+
+function resize() {
+  const wrap = document.getElementById('board-wrap');
+  W = wrap.clientWidth; H = wrap.clientHeight;
+  canvas.width  = W * devicePixelRatio;
+  canvas.height = H * devicePixelRatio;
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+}
+
+// ─── i18n ───────────────────────────────────────────────────────
+// ?lang=en opens the game in English (used by the portfolio embed); Ukrainian otherwise
+let lang = (function () {
+  const q = new URLSearchParams(location.search).get('lang');
+  if (q === 'en' || q === 'ua') return q;
+  try { return localStorage.getItem('bs_lang') === 'en' ? 'en' : 'ua'; } catch (e) { return 'ua'; }
+})();
+const I18N = {
+  ua: {
+    score: 'очки', left: 'лишилось',
+    level:      l => 'рівень ' + l,
+    timerOn:    '⏱ таймер вкл', timerOff: '⏱ таймер викл',
+    timeSuffix: 'с',
+    startTitle: 'Buckwheat Sort',
+    startBody:  'Перетягни добрі зерна у миску 🥣\nСміття та погані — у кошик 🗑️',
+    play:       'Грати',
+    perfect:    'Ідеально!',
+    levelDone:  l => 'Рівень ' + l + ' пройдено',
+    pts:        n => '+' + n + ' очок',
+    bonus:      n => ' (⏱ бонус +' + n + ')',
+    total:      n => 'Всього: ' + n,
+    mistakes:   n => n + ' помилок',
+    next:       'Далі →',
+    timeUp:     'Час вийшов!',
+    scoreLabel: n => 'Очки: ' + n,
+    tryAgain:   'Ще раз',
+    records:    'Рекорди',
+    levelRow:   n => 'Рівень ' + n,
+    ptsRow:     n => n + ' очок',
+    langBtn:    'EN',
+  },
+  en: {
+    score: 'score', left: 'left',
+    level:      l => 'level ' + l,
+    timerOn:    '⏱ timer on', timerOff: '⏱ timer off',
+    timeSuffix: 's',
+    startTitle: 'Buckwheat Sort',
+    startBody:  'Drag good grains to the bowl 🥣\nBad ones & trash — to the bin 🗑️',
+    play:       'Play',
+    perfect:    'Perfect!',
+    levelDone:  l => 'Level ' + l + ' complete',
+    pts:        n => '+' + n + ' pts',
+    bonus:      n => ' (⏱ bonus +' + n + ')',
+    total:      n => 'Total: ' + n,
+    mistakes:   n => n + ' mistake' + (n === 1 ? '' : 's'),
+    next:       'Next →',
+    timeUp:     "Time's up!",
+    scoreLabel: n => 'Score: ' + n,
+    tryAgain:   'Try again',
+    records:    'Records',
+    levelRow:   n => 'Level ' + n,
+    ptsRow:     n => n + ' pts',
+    langBtn:    'UA',
+  },
+};
+
+function t(key, ...args) {
+  const v = I18N[lang][key];
+  return typeof v === 'function' ? v(...args) : v;
+}
+
+function switchLang() {
+  lang = lang === 'ua' ? 'en' : 'ua';
+  document.documentElement.lang = lang === 'ua' ? 'uk' : 'en';
+  try { localStorage.setItem('bs_lang', lang); } catch (e) {}
+  applyLang();
+}
+
+function applyLang() {
+  document.getElementById('lbl-score').textContent  = t('score');
+  document.getElementById('lbl-left').textContent   = t('left');
+  document.getElementById('lang-btn').textContent   = t('langBtn');
+  document.getElementById('level-pill').textContent = t('level', level);
+  document.getElementById('timer-btn').textContent  = timerOn ? t('timerOn') : t('timerOff');
+  if (timerOn && timeLeft > 0)
+    document.getElementById('timer-num').textContent = timeLeft + t('timeSuffix');
+  if (document.getElementById('overlay').style.display !== 'none' && ovState)
+    _renderOverlay();
+}
+
+// ─── State ──────────────────────────────────────────────────────
+let grains = [], dragging = null, dragOX = 0, dragOY = 0;
+let score = 0, goodC = 0, badC = 0, level = 1;
+let particles = [];
+let timerOn = true, timeLeft = 0, timerMax = 0, timerTick = null;
+let audioCtx = null;
+let lb = {}, ovState = null;
+// lb is session-only — not loaded from localStorage so scores never persist across page refreshes
+
+// Saves best score / level into the local profile (only when playing with a profile, never for guests)
+function saveProgress() {
+  try {
+    if (localStorage.getItem('bs_mode') !== 'profile') return;
+    const p = JSON.parse(localStorage.getItem('bs_profile') || 'null');
+    if (!p) return;
+    p.bestScore = Math.max(p.bestScore || 0, score);
+    p.bestLevel = Math.max(p.bestLevel || 0, level);
+    localStorage.setItem('bs_profile', JSON.stringify(p));
+  } catch (e) {}
+}
+
+// ─── Audio ──────────────────────────────────────────────────────
+function ac() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+function beep(freq, type, dur, vol, delay = 0) {
+  try {
+    const a = ac(), o = a.createOscillator(), g = a.createGain();
+    o.connect(g); g.connect(a.destination);
+    o.type = type; o.frequency.value = freq;
+    const t0 = a.currentTime + delay;
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(vol, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+    o.start(t0); o.stop(t0 + dur + 0.05);
+  } catch(e) {}
+}
+function playPick()  { beep(480, 'sine', 0.08, 0.1); }
+function playGood()  { beep(660, 'triangle', 0.12, 0.12); beep(880, 'triangle', 0.12, 0.1, 0.08); }
+function playBad()   { beep(200, 'sine', 0.20, 0.055); beep(140, 'sine', 0.16, 0.035, 0.10); }
+function playWrong() { beep(160, 'square', 0.25, 0.12); }
+function playWin()   { [440,554,659,880].forEach((f,i) => beep(f,'triangle',0.3,0.1,i*0.09)); }
+
+// ─── Color helpers ───────────────────────────────────────────────
+function lighten(hex, amount) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = Math.min(255, (n >> 16) + Math.round(255 * amount));
+  const g = Math.min(255, ((n >> 8) & 0xff) + Math.round(255 * amount));
+  const b = Math.min(255, (n & 0xff) + Math.round(255 * amount));
+  return '#' + [r,g,b].map(v => v.toString(16).padStart(2,'0')).join('');
+}
+function darken(hex, amount) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = Math.max(0, (n >> 16) - Math.round(255 * amount));
+  const g = Math.max(0, ((n >> 8) & 0xff) - Math.round(255 * amount));
+  const b = Math.max(0, (n & 0xff) - Math.round(255 * amount));
+  return '#' + [r,g,b].map(v => v.toString(16).padStart(2,'0')).join('');
+}
+
+// ─── Grain types ─────────────────────────────────────────────────
+//
+//  kind: 'grain'   → drawn as buckwheat triangle
+//        'pebble'  → smooth irregular gray blob
+//        'husk'    → thin flat ellipse (shell fragment)
+//        'twig'    → elongated dark sliver
+//
+const TYPES = {
+  // ── Good grains ────────────────────────────────────────────────
+  good:       { kind:'grain',  isBad:false, color:'#9a6118', hl:'rgba(215,168,65,0.4)'  },
+  good_light: { kind:'grain',  isBad:false, color:'#b07828', hl:'rgba(230,190,80,0.4)', light:true },
+  good_large: { kind:'grain',  isBad:false, color:'#8a5515', hl:'rgba(205,155,55,0.4)', large:true },
+  // ── Bad grains ─────────────────────────────────────────────────
+  dark:       { kind:'grain',  isBad:true,  color:'#190e04', hl:'rgba(55,28,10,0.32)'   },
+  pale:       { kind:'grain',  isBad:true,  color:'#b5a86a', hl:'rgba(238,228,175,0.6)', shriveled:true },
+  // spotted: normal brown, tiny dark dot — looks almost good
+  spotted:    { kind:'grain',  isBad:true,  color:'#9a6118', hl:'rgba(215,168,65,0.4)', hasSpot:true },
+  // deformed: lopsided triangle, normal color
+  deformed:   { kind:'grain',  isBad:true,  color:'#9a6118', hl:'rgba(215,168,65,0.4)', deformed:true },
+  // moldy: earthy muted green-brown (not toxic green)
+  moldy:      { kind:'grain',  isBad:true,  color:'#5a6040', hl:'rgba(118,128,82,0.42)', hasMold:true },
+};
+
+function makeGrain(id) {
+  const badChance = 0.35 + Math.min(level - 1, 7) * 0.03;
+  let type;
+  if (Math.random() > badChance) {
+    const r = Math.random();
+    type = r < 0.40 ? 'good' : r < 0.72 ? 'good_light' : 'good_large';
+  } else {
+    const r = Math.random();
+    if      (r < 0.20) type = 'dark';
+    else if (r < 0.40) type = 'pale';
+    else if (r < 0.58) type = 'spotted';
+    else if (r < 0.76) type = 'deformed';
+    else               type = 'moldy';
+  }
+
+  const cfg = TYPES[type];
+  const isGarbage = Math.random() < 0.12 + level * 0.015;
+
+  let debrisType = null;
+  if (isGarbage) {
+    const r = Math.random();
+    debrisType = r < 0.45 ? 'chunk' : r < 0.72 ? 'oat' : 'petal';
+  }
+
+  let baseSize;
+  if (isGarbage) {
+    if      (debrisType === 'oat')   baseSize = 13 + Math.random() * 3;
+    else if (debrisType === 'petal') baseSize =  5 + Math.random() * 2;
+    else                             baseSize =  9 + Math.random() * 4;
+  } else if (cfg.shriveled) {
+    baseSize = 6.5 + Math.random() * 2.5;
+  } else if (cfg.large) {
+    baseSize = 12  + Math.random() * 4;
+  } else {
+    baseSize = 9.5 + Math.random() * 4;
+  }
+
+  const margin = 40;
+  return {
+    id, type, isBad: isGarbage || cfg.isBad,
+    isGarbage, debrisType,
+    x: margin + Math.random() * (W - margin * 2),
+    y: margin + Math.random() * (H - margin * 2),
+    size: baseSize,
+    angle: Math.random() * Math.PI * 2,
+    sorted: false, wrong: false,
+    moldPts: cfg.hasMold && !isGarbage ? Array.from({length: 3}, () => ({
+      dx: (Math.random() - 0.5) * 1.0,
+      dy: (Math.random() - 0.5) * 1.0,
+      r:   0.15 + Math.random() * 0.12,
+    })) : null,
+    spotPos: cfg.hasSpot && !isGarbage ? {
+      dx: (Math.random() - 0.5) * 0.7,
+      dy: (Math.random() - 0.5) * 0.7,
+      r:   0.12 + Math.random() * 0.08,
+    } : null,
+    gpts: debrisType === 'chunk' ? Array.from({length: 5 + Math.floor(Math.random()*3)}, () =>
+      [(Math.random()-0.5)*14, (Math.random()-0.5)*14]) : null,
+  };
+}
+
+// ─── Draw: buckwheat grain ───────────────────────────────────────
+function buckwheatShape(pts, cr) {
+  const midX = (pts[2][0] + pts[0][0]) / 2;
+  const midY = (pts[2][1] + pts[0][1]) / 2;
+  ctx.moveTo(midX, midY);
+  for (let i = 0; i < 3; i++)
+    ctx.arcTo(pts[i][0], pts[i][1], pts[(i+1)%3][0], pts[(i+1)%3][1], cr);
+  ctx.closePath();
+}
+
+function drawBuckwheat(x, y, size, angle, color, hl, lifted, opts) {
+  opts = opts || {};
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+
+  const s = size;
+  const pts = [];
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2 - Math.PI / 2;
+    pts.push([Math.cos(a) * s, Math.sin(a) * s]);
+  }
+
+  // Slightly deformed: shift vertices to make lopsided shape
+  if (opts.deformed) {
+    pts[0][0] += s * 0.26;
+    pts[1][0] -= s * 0.14; pts[1][1] += s * 0.1;
+    pts[2][1] += s * 0.12;
+  }
+
+  const cr = s * 0.32;
+
+  // Lifted glow
+  if (lifted) {
+    const big = pts.map(([px,py]) => [px*1.38, py*1.38]);
+    ctx.beginPath(); buckwheatShape(big, cr * 1.38);
+    ctx.fillStyle = 'rgba(180,130,50,0.17)';
+    ctx.fill();
+  }
+
+  // Main body — radial gradient for 3D look
+  ctx.beginPath();
+  buckwheatShape(pts, cr);
+  const grd = ctx.createRadialGradient(-s*0.12, -s*0.18, 0, 0, 0, s*1.1);
+  grd.addColorStop(0,    lighten(color, 0.22));
+  grd.addColorStop(0.55, color);
+  grd.addColorStop(1,    darken(color, 0.22));
+  ctx.fillStyle = grd;
+  ctx.fill();
+
+  // Edge
+  ctx.strokeStyle = darken(color, 0.32);
+  ctx.lineWidth = lifted ? 1.4 : 0.9;
+  ctx.stroke();
+
+  // 3 ridge lines (buckwheat facets)
+  ctx.globalAlpha = 0.28;
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(pts[i][0] * 0.78, pts[i][1] * 0.78);
+    ctx.strokeStyle = darken(color, 0.28);
+    ctx.lineWidth = 0.75;
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // Wrinkle lines for shriveled grains
+  if (opts.shriveled) {
+    ctx.globalAlpha = 0.28;
+    ctx.strokeStyle = darken(color, 0.4);
+    ctx.lineWidth = 0.55;
+    for (let i = -1; i <= 1; i++) {
+      const yo = i * s * 0.3;
+      ctx.beginPath();
+      ctx.moveTo(-s*0.46, yo + Math.sin(i*1.8)*s*0.1);
+      ctx.quadraticCurveTo(0, yo + s*0.15, s*0.46, yo - Math.sin(i*1.8)*s*0.1);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Mold spots — clipped to grain shape
+  if (opts.moldPts) {
+    ctx.save();
+    ctx.beginPath(); buckwheatShape(pts, cr); ctx.clip();
+    opts.moldPts.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.dx * s, p.dy * s, p.r * s, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(50,105,18,0.80)';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(p.dx*s - p.r*s*0.28, p.dy*s - p.r*s*0.22, p.r*s*0.38, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(105,158,42,0.55)';
+      ctx.fill();
+    });
+    ctx.restore();
+  }
+
+  // Dark spot — makes spotted grain look almost good but has a flaw
+  if (opts.spotPos) {
+    const sp = opts.spotPos;
+    ctx.beginPath();
+    ctx.arc(sp.dx * s, sp.dy * s, sp.r * s, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(12,6,2,0.88)';
+    ctx.fill();
+  }
+
+  // Specular highlight
+  ctx.beginPath();
+  ctx.arc(-s*0.22, -s*0.26, s*0.14, 0, Math.PI*2);
+  ctx.fillStyle = hl;
+  ctx.fill();
+
+  ctx.restore();
+}
+
+// ─── Dispatch draw ───────────────────────────────────────────────
+function drawGrainObj(g, lifted) {
+  if (g.isGarbage) {
+    if      (g.debrisType === 'oat')   { drawOat(g.x, g.y, g.size, g.angle, lifted); return; }
+    else if (g.debrisType === 'petal') { drawPetal(g.x, g.y, g.size, g.angle, lifted); return; }
+    // chunk: original irregular polygon
+    ctx.save();
+    ctx.translate(g.x, g.y);
+    ctx.rotate(g.angle);
+    if (lifted) {
+      ctx.beginPath(); garbagePath(g.gpts);
+      ctx.fillStyle = 'rgba(140,120,90,0.25)'; ctx.fill();
+    }
+    ctx.beginPath(); garbagePath(g.gpts);
+    ctx.fillStyle = '#9a9080'; ctx.fill();
+    ctx.strokeStyle = '#6a6050'; ctx.lineWidth = 0.8; ctx.stroke();
+    ctx.restore();
+    return;
+  }
+  const cfg = TYPES[g.type];
+  drawBuckwheat(g.x, g.y, g.size, g.angle, cfg.color, cfg.hl, lifted, {
+    shriveled: cfg.shriveled,
+    deformed:  cfg.deformed,
+    moldPts:   g.moldPts,
+    spotPos:   g.spotPos,
+  });
+}
+
+function garbagePath(pts) {
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+  ctx.closePath();
+}
+
+// ─── Draw: oat flake ─────────────────────────────────────────────
+function drawOat(x, y, size, angle, lifted) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+
+  const w = size * 1.35, h = size * 0.72;
+
+  if (lifted) {
+    ctx.beginPath();
+    ctx.ellipse(0, 0, w * 1.22, h * 1.28, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(195,172,115,0.20)';
+    ctx.fill();
+  }
+
+  ctx.beginPath();
+  ctx.ellipse(0, 0, w, h, 0, 0, Math.PI * 2);
+  const grd = ctx.createRadialGradient(-w * 0.15, -h * 0.2, 0, 0, 0, w);
+  grd.addColorStop(0,   '#e6d8b4');
+  grd.addColorStop(0.6, '#d4c49a');
+  grd.addColorStop(1,   '#b8a874');
+  ctx.fillStyle = grd;
+  ctx.fill();
+  ctx.strokeStyle = '#a09060';
+  ctx.lineWidth = lifted ? 1.0 : 0.65;
+  ctx.stroke();
+
+  // Subtle texture lines across the oat
+  ctx.globalAlpha = 0.20;
+  ctx.strokeStyle = '#887840';
+  ctx.lineWidth = 0.5;
+  for (let i = -1; i <= 1; i++) {
+    const yo = i * h * 0.32;
+    const xw = Math.sqrt(Math.max(0, 1 - (yo / h) ** 2)) * w * 0.78;
+    ctx.beginPath();
+    ctx.moveTo(-xw, yo);
+    ctx.lineTo(xw, yo);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.restore();
+}
+
+// ─── Draw: yellow petal ──────────────────────────────────────────
+function drawPetal(x, y, size, angle, lifted) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+
+  const len = size * 1.1, wid = size * 0.52;
+
+  if (lifted) {
+    ctx.save();
+    ctx.scale(1.28, 1.28);
+    ctx.beginPath(); petalPath(len, wid);
+    ctx.fillStyle = 'rgba(220,200,55,0.18)';
+    ctx.fill();
+    ctx.restore();
+  }
+
+  ctx.beginPath();
+  petalPath(len, wid);
+  const grd = ctx.createRadialGradient(-len * 0.1, -len * 0.3, 0, 0, len * 0.2, len * 1.1);
+  grd.addColorStop(0,   '#f4ee90');
+  grd.addColorStop(0.5, '#e8d060');
+  grd.addColorStop(1,   '#c4a830');
+  ctx.fillStyle = grd;
+  ctx.fill();
+  ctx.strokeStyle = '#b09020';
+  ctx.lineWidth = lifted ? 0.75 : 0.42;
+  ctx.stroke();
+
+  // Center vein
+  ctx.globalAlpha = 0.28;
+  ctx.beginPath();
+  ctx.moveTo(0, len * 0.85);
+  ctx.lineTo(0, -len * 0.75);
+  ctx.strokeStyle = '#9a7e18';
+  ctx.lineWidth = 0.4;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  ctx.restore();
+}
+
+function petalPath(len, wid) {
+  ctx.moveTo(0, len);
+  ctx.bezierCurveTo( wid,  len * 0.35,  wid * 0.9, -len * 0.3, 0, -len);
+  ctx.bezierCurveTo(-wid * 0.9, -len * 0.3, -wid, len * 0.35, 0, len);
+  ctx.closePath();
+}
+
+// ─── Particles ───────────────────────────────────────────────────
+function burst(x, y, good) {
+  const accent = good ? '#6aaa4a' : '#d05030';
+  for (let i = 0; i < 12; i++) {
+    const a = Math.random() * Math.PI * 2, sp = 1.5 + Math.random() * 3;
+    // 70% beige, 30% accent
+    const col = Math.random() < 0.70 ? '#e8dfc8' : accent;
+    particles.push({ x, y, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp - 1, life: 1, col });
+  }
+}
+
+// ─── Render loop ─────────────────────────────────────────────────
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  particles = particles.filter(p => {
+    p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.life -= 0.045;
+    if (p.life <= 0) return false;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 3 * p.life, 0, Math.PI*2);
+    const alpha = Math.round(p.life * 220).toString(16).padStart(2,'0');
+    ctx.fillStyle = p.col + alpha;
+    ctx.fill();
+    return true;
+  });
+  for (const g of grains) if (!g.sorted && g !== dragging) drawGrainObj(g, false);
+  if (dragging) drawGrainObj(dragging, true);
+}
+
+let rafId;
+function loop() { draw(); rafId = requestAnimationFrame(loop); }
+
+// ─── HUD ─────────────────────────────────────────────────────────
+function updateHUD() {
+  document.getElementById('sc').textContent  = score;
+  document.getElementById('lft').textContent = grains.filter(g => !g.sorted).length;
+  document.getElementById('gc').textContent  = goodC;
+  document.getElementById('bc').textContent  = badC;
+  document.getElementById('level-pill').textContent = t('level', level);
+}
+
+// ─── Timer ───────────────────────────────────────────────────────
+function toggleTimer() {
+  timerOn = !timerOn;
+  document.getElementById('timer-btn').textContent = timerOn ? t('timerOn') : t('timerOff');
+  document.getElementById('timer-track').style.opacity = timerOn ? '1' : '0.3';
+  if (timerOn && grains.length && document.getElementById('overlay').style.display === 'none') {
+    startTimer();
+  } else {
+    clearInterval(timerTick);
+    document.getElementById('timer-num').textContent = '—';
+  }
+}
+
+function startTimer() {
+  clearInterval(timerTick);
+  if (!timerOn) return;
+  timerMax = Math.max(18, 42 - level * 3);
+  timeLeft = timerMax;
+  tickTimer();
+  timerTick = setInterval(() => {
+    timeLeft--;
+    tickTimer();
+    if (timeLeft <= 0) { clearInterval(timerTick); gameOver(); }
+  }, 1000);
+}
+
+function tickTimer() {
+  if (!timerOn) return;
+  const pct = timeLeft / timerMax;
+  document.getElementById('timer-fill').style.width      = (pct * 100) + '%';
+  document.getElementById('timer-fill').style.background = pct > 0.5 ? '#7a9e6a' : pct > 0.25 ? '#c8881a' : '#c04a2a';
+  document.getElementById('timer-num').textContent       = timeLeft + t('timeSuffix');
+}
+
+// ─── Overlay ─────────────────────────────────────────────────────
+function _renderOverlay() {
+  if (!ovState) return;
+  document.getElementById('ov-emoji').textContent = ovState.emoji;
+  document.getElementById('ov-title').textContent = ovState.getTitle();
+  document.getElementById('ov-body').textContent  = ovState.getBody();
+  document.getElementById('ov-btn').textContent   = ovState.getBtnText();
+  document.getElementById('ov-btn').onclick       = ovState.btnFn;
+  const lbEl = document.getElementById('lb-wrap');
+  const entries = Object.entries(lb).sort((a,b) => parseInt(a[0].slice(3)) - parseInt(b[0].slice(3)));
+  if (entries.length) {
+    lbEl.innerHTML =
+      '<div style="font-size:11px;color:#a0896a;text-align:center;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em;">' + t('records') + '</div>' +
+      entries.map(([k,v]) =>
+        `<div class="lb-row"><span>${t('levelRow', k.slice(3))}</span><span>${t('ptsRow', v)}</span></div>`
+      ).join('');
+  } else {
+    lbEl.innerHTML = '';
+  }
+}
+
+function showOverlay(emoji, getTitle, getBody, getBtnText, btnFn) {
+  ovState = { emoji, getTitle, getBody, getBtnText, btnFn };
+  _renderOverlay();
+  document.getElementById('overlay').style.display = 'flex';
+  draw();
+}
+
+// ─── Game logic ───────────────────────────────────────────────────
+function startGame(lvl) {
+  level = lvl || 1;
+  if (!lvl || lvl === 1) score = 0;
+  goodC = 0; badC = 0; particles = [];
+  grains = Array.from({length: 8 + level * 3}, (_, i) => makeGrain(i));
+  document.getElementById('overlay').style.display = 'none';
+  ovState = null;
+  updateHUD();
+  startTimer();
+  cancelAnimationFrame(rafId);
+  loop();
+}
+
+function checkWin() {
+  if (!grains.every(g => g.sorted)) return;
+  clearInterval(timerTick);
+  cancelAnimationFrame(rafId);
+  const errors    = grains.filter(g => g.wrong).length;
+  const timeBonus = timerOn ? timeLeft * 2 : 0;
+  const pts       = Math.max(0, 30 - errors * 8) + timeBonus;
+  score += pts;
+  const key = 'lvl' + level;
+  if (!lb[key] || score > lb[key]) lb[key] = score;
+  saveProgress();
+  playWin();
+  const lvS = level, ptS = pts, bonS = timeBonus, errS = errors, scS = score;
+  showOverlay(
+    errS === 0 ? '✨' : '🌾',
+    () => errS === 0 ? t('perfect') : t('levelDone', lvS),
+    () => t('pts', ptS) + (bonS ? t('bonus', bonS) : '') + '\n' + t('total', scS) + (errS ? '\n' + t('mistakes', errS) : ''),
+    () => t('next'),
+    () => startGame(lvS + 1)
+  );
+}
+
+function gameOver() {
+  cancelAnimationFrame(rafId);
+  playWrong();
+  saveProgress();
+  const scS = score, lvS = level;
+  showOverlay('⏰', () => t('timeUp'), () => t('scoreLabel', scS), () => t('tryAgain'), () => startGame(lvS));
+}
+
+// ─── Input ────────────────────────────────────────────────────────
+function getPos(e) {
+  const r = canvas.getBoundingClientRect();
+  const s = e.touches ? e.touches[0] : e;
+  return { x: (s.clientX - r.left) * (W / r.width), y: (s.clientY - r.top) * (H / r.height) };
+}
+
+function hitTest(px, py) {
+  for (let i = grains.length - 1; i >= 0; i--) {
+    const g = grains[i];
+    if (g.sorted) continue;
+    const radius = !g.isGarbage ? Math.max(g.size * 1.4, 10)
+                 : g.debrisType === 'petal' ? Math.max(g.size * 1.5, 8)
+                 : 14;
+    if (Math.hypot(px - g.x, py - g.y) < radius) return g;
+  }
+  return null;
+}
+
+function onDown(e) {
+  e.preventDefault();
+  if (document.getElementById('overlay').style.display !== 'none') return;
+  const p = getPos(e);
+  dragging = hitTest(p.x, p.y);
+  if (dragging) { dragOX = p.x - dragging.x; dragOY = p.y - dragging.y; playPick(); }
+}
+
+function onMove(e) {
+  e.preventDefault();
+  if (!dragging) return;
+  const p = getPos(e);
+  dragging.x = p.x - dragOX;
+  dragging.y = p.y - dragOY;
+
+  const appR   = document.getElementById('app').getBoundingClientRect();
+  const zonesR = document.getElementById('zones').getBoundingClientRect();
+  const src = e.touches ? e.touches[0] : e;
+  const overZones = src.clientY >= zonesR.top || dragging.y > H * 0.72;
+  const isLeft    = src.clientX < appR.left + appR.width / 2;
+  document.getElementById('zone-good').classList.toggle('over', overZones && isLeft);
+  document.getElementById('zone-bad').classList.toggle('over',  overZones && !isLeft);
+}
+
+function onUp(e) {
+  e.preventDefault();
+  if (!dragging) return;
+  const appR   = document.getElementById('app').getBoundingClientRect();
+  const zonesR = document.getElementById('zones').getBoundingClientRect();
+  const src = e.changedTouches ? e.changedTouches[0] : e;
+  document.getElementById('zone-good').classList.remove('over');
+  document.getElementById('zone-bad').classList.remove('over');
+
+  const overZones = src.clientY >= zonesR.top || dragging.y > H * 0.72;
+
+  if (overZones) {
+    const droppedGood = src.clientX < appR.left + appR.width / 2;
+    const correct = droppedGood ? !dragging.isBad : dragging.isBad;
+    dragging.sorted = true;
+    dragging.wrong  = !correct;
+    if (correct) {
+      score += 10;
+      droppedGood ? goodC++ : badC++;
+      burst(dragging.x, dragging.y, true);
+      droppedGood ? playGood() : playBad();
+    } else {
+      score = Math.max(0, score - 5);
+      droppedGood ? goodC++ : badC++;
+      burst(dragging.x, dragging.y, false);
+      playWrong();
+    }
+    updateHUD();
+    checkWin();
+  }
+  dragging = null;
+}
+
+canvas.addEventListener('mousedown',  onDown);
+canvas.addEventListener('mousemove',  onMove);
+canvas.addEventListener('mouseup',    onUp);
+canvas.addEventListener('touchstart', onDown, { passive: false });
+canvas.addEventListener('touchmove',  onMove, { passive: false });
+canvas.addEventListener('touchend',   onUp,   { passive: false });
+
+// ─── Init ─────────────────────────────────────────────────────────
+new ResizeObserver(() => { resize(); draw(); }).observe(document.getElementById('board-wrap'));
+window.addEventListener('load', () => {
+  resize();
+  if (lang === 'en') { document.documentElement.lang = 'en'; applyLang(); }
+  showOverlay('🌾', () => t('startTitle'), () => t('startBody'), () => t('play'), () => startGame());
+});
+window.startGame   = startGame;
+window.toggleTimer = toggleTimer;
+window.switchLang  = switchLang;
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>

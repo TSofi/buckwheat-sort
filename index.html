@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Buckwheat Sort">
+<meta name="theme-color" content="#faf7f2">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>Buckwheat Sort</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { width: 100%; height: 100%; background: #faf7f2; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #2c1f0e; }
+#app { width: 100%; min-height: 100%; max-width: 430px; margin: 0 auto; padding: 20px 22px 32px; position: relative; }
+.screen { display: none; flex-direction: column; min-height: calc(100vh - 52px); }
+.screen.active { display: flex; }
+#lang-btn { position: absolute; top: 16px; right: 22px; background: none; border: 1px solid #d8cfc2; border-radius: 10px; padding: 3px 11px; font-size: 11px; color: #a0896a; cursor: pointer; font-weight: 600; letter-spacing: 0.05em; }
+#lang-btn:active { background: #ede8df; }
+
+/* welcome */
+#welcome { align-items: center; justify-content: center; text-align: center; gap: 14px; }
+.logo { font-size: 64px; line-height: 1; }
+h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.5px; }
+.tagline { font-size: 14px; color: #7a6448; line-height: 1.6; max-width: 280px; }
+.btn { width: 100%; max-width: 280px; padding: 14px 20px; border-radius: 26px; font-size: 15px; font-weight: 500; cursor: pointer; border: 1px solid #2c1f0e; background: #2c1f0e; color: #faf7f2; transition: transform .1s, opacity .1s; }
+.btn:active { transform: scale(0.97); opacity: .85; }
+.btn.ghost { background: transparent; color: #2c1f0e; border-color: #d8cfc2; }
+.stack { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; margin-top: 10px; }
+.hint { font-size: 12px; color: #a0896a; max-width: 260px; line-height: 1.5; margin-top: 4px; }
+
+/* profile form */
+#profile { align-items: center; justify-content: center; text-align: center; gap: 12px; }
+#nick-input { width: 100%; max-width: 280px; padding: 13px 16px; border-radius: 14px; border: 1px solid #d8cfc2; background: #fff; font-size: 16px; text-align: center; color: #2c1f0e; outline: none; }
+#nick-input:focus { border-color: #8b5a1a; }
+#nick-err { font-size: 12px; color: #b04a2a; min-height: 16px; }
+.back-link { background: none; border: none; color: #a0896a; font-size: 13px; cursor: pointer; padding: 8px; }
+
+/* menu */
+#menu { gap: 18px; padding-top: 28px; }
+.greet { font-size: 22px; font-weight: 600; letter-spacing: -0.3px; }
+.sub { font-size: 13px; color: #a0896a; margin-top: 2px; }
+.stats { display: flex; gap: 10px; }
+.stat { flex: 1; background: #f1ece2; border-radius: 14px; padding: 12px 14px; }
+.stat b { display: block; font-size: 20px; font-weight: 600; }
+.stat span { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: #a0896a; }
+.section-title { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #a0896a; }
+.game-card { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; background: #fff; border: 1px solid #e8e0d4; border-radius: 18px; padding: 14px; cursor: pointer; transition: transform .1s; }
+.game-card:active { transform: scale(0.98); }
+.game-icon { width: 60px; height: 60px; border-radius: 14px; background: #f1ece2; display: flex; align-items: center; justify-content: center; font-size: 32px; flex-shrink: 0; }
+.game-name { font-size: 16px; font-weight: 600; }
+.game-desc { font-size: 12px; color: #7a6448; margin-top: 3px; line-height: 1.4; }
+.play-pill { margin-left: auto; font-size: 12px; font-weight: 500; background: #2c1f0e; color: #faf7f2; padding: 7px 14px; border-radius: 16px; }
+.menu-foot { margin-top: auto; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div id="app">
+  <button id="lang-btn" onclick="switchLang()">EN</button>
+
+  <section class="screen" id="welcome">
+    <div class="logo">🌾</div>
+    <h1>Buckwheat Sort</h1>
+    <p class="tagline" id="w-tag"></p>
+    <div class="stack">
+      <button class="btn" id="w-main" onclick="mainAction()"></button>
+      <button class="btn ghost" id="w-guest" onclick="playGuest()"></button>
+    </div>
+    <p class="hint" id="w-hint"></p>
+  </section>
+
+  <section class="screen" id="profile">
+    <div class="logo" style="font-size:48px">👤</div>
+    <h1 id="p-title" style="font-size:22px"></h1>
+    <p class="tagline" id="p-sub"></p>
+    <input id="nick-input" maxlength="16" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <div id="nick-err"></div>
+    <div class="stack" style="margin-top:0">
+      <button class="btn" id="p-save" onclick="createProfile()"></button>
+      <button class="back-link" id="p-back" onclick="show('welcome')"></button>
+    </div>
+  </section>
+
+  <section class="screen" id="menu">
+    <div>
+      <div class="greet" id="m-greet"></div>
+      <div class="sub" id="m-sub"></div>
+    </div>
+    <div class="stats" id="m-stats"></div>
+    <div class="section-title" id="m-games"></div>
+    <button class="game-card" onclick="openGame('buckwheat.html')">
+      <div class="game-icon">🥣</div>
+      <div>
+        <div class="game-name">Buckwheat Sort</div>
+        <div class="game-desc" id="g-desc"></div>
+      </div>
+      <div class="play-pill" id="g-play"></div>
+    </button>
+    <div class="menu-foot">
+      <button class="back-link" id="m-switch" onclick="show('welcome')"></button>
+      <button class="back-link" id="m-reset" onclick="resetProfile()"></button>
+    </div>
+  </section>
+</div>
+
+<script>
+const I18N = {
+  ua: {
+    langBtn: 'EN',
+    tag: 'Сортуй гречку: добрі зерна в миску, сміття в кошик.',
+    enter: 'Мій профіль', cont: n => 'Продовжити як ' + n, guest: 'Грати як гість',
+    hint: 'Профіль — це лише нікнейм і прогрес. Усе зберігається у твоєму браузері, без пошти і паролів.',
+    pTitle: 'Створи профіль', pSub: 'Лише нікнейм. Без пошти і паролів.', pPh: 'Твій нікнейм', pSave: 'Створити і грати', pBack: '← Назад',
+    errEmpty: 'Введи нікнейм', errShort: 'Мінімум 2 символи',
+    hello: n => 'Привіт, ' + n + '!', helloGuest: 'Привіт, гостю!',
+    subProfile: 'Твій прогрес зберігається в цьому браузері', subGuest: 'Гостьовий режим: прогрес не зберігається',
+    best: 'Рекорд', level: 'Рівень', games: 'Ігри', gameDesc: 'Перебирай гречку: добре в миску, погане в кошик', play: 'Грати',
+    switchP: 'Змінити режим', reset: 'Видалити профіль', confirmReset: 'Видалити профіль і весь прогрес?'
+  },
+  en: {
+    langBtn: 'UA',
+    tag: 'Sort buckwheat: good grains in the bowl, debris in the bin.',
+    enter: 'My profile', cont: n => 'Continue as ' + n, guest: 'Play as guest',
+    hint: 'A profile is just a nickname and progress. Everything stays in your browser, no email or password.',
+    pTitle: 'Create a profile', pSub: 'Just a nickname. No email or password.', pPh: 'Your nickname', pSave: 'Create and play', pBack: '← Back',
+    errEmpty: 'Enter a nickname', errShort: 'At least 2 characters',
+    hello: n => 'Hi, ' + n + '!', helloGuest: 'Hi, guest!',
+    subProfile: 'Your progress is saved in this browser', subGuest: 'Guest mode: progress is not saved',
+    best: 'Best score', level: 'Best level', games: 'Games', gameDesc: 'Sort buckwheat: good in the bowl, bad in the bin', play: 'Play',
+    switchP: 'Switch mode', reset: 'Delete profile', confirmReset: 'Delete the profile and all progress?'
+  }
+};
+
+function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function lsDel(k) { try { localStorage.removeItem(k); } catch (e) {} }
+
+let lang = lsGet('bs_lang') === 'en' ? 'en' : 'ua';
+const T = k => I18N[lang][k];
+
+function getProfile() {
+  try { const p = JSON.parse(lsGet('bs_profile') || 'null'); return p && p.nick ? p : null; } catch (e) { return null; }
+}
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id));
+  if (id === 'profile') { document.getElementById('nick-input').focus(); }
+}
+
+function applyLang() {
+  document.documentElement.lang = lang === 'ua' ? 'uk' : 'en';
+  const p = getProfile();
+  const set = (id, v) => { document.getElementById(id).textContent = v; };
+  set('lang-btn', T('langBtn'));
+  set('w-tag', T('tag'));
+  set('w-main', p ? T('cont')(p.nick) : T('enter'));
+  set('w-guest', T('guest'));
+  set('w-hint', T('hint'));
+  set('p-title', T('pTitle')); set('p-sub', T('pSub')); set('p-save', T('pSave')); set('p-back', T('pBack'));
+  document.getElementById('nick-input').placeholder = T('pPh');
+  set('m-games', T('games')); set('g-desc', T('gameDesc')); set('g-play', T('play'));
+  set('m-switch', T('switchP')); set('m-reset', T('reset'));
+  document.getElementById('m-reset').style.display = p ? '' : 'none';
+  renderMenu();
+}
+
+function switchLang() {
+  lang = lang === 'ua' ? 'en' : 'ua';
+  lsSet('bs_lang', lang);
+  applyLang();
+}
+
+function renderMenu() {
+  const isProfile = lsGet('bs_mode') === 'profile' && getProfile();
+  const p = getProfile();
+  document.getElementById('m-greet').textContent = isProfile ? T('hello')(p.nick) : T('helloGuest');
+  document.getElementById('m-sub').textContent = isProfile ? T('subProfile') : T('subGuest');
+  const st = document.getElementById('m-stats');
+  st.innerHTML = '';
+  if (isProfile) {
+    [[p.bestScore || 0, T('best')], [p.bestLevel || 0, T('level')]].forEach(([v, l]) => {
+      const d = document.createElement('div');
+      d.className = 'stat';
+      const b = document.createElement('b'); b.textContent = v;
+      const s = document.createElement('span'); s.textContent = l;
+      d.append(b, s); st.appendChild(d);
+    });
+  }
+  st.style.display = isProfile ? 'flex' : 'none';
+}
+
+function mainAction() {
+  if (getProfile()) { lsSet('bs_mode', 'profile'); renderMenu(); show('menu'); }
+  else show('profile');
+}
+
+function playGuest() { lsSet('bs_mode', 'guest'); renderMenu(); show('menu'); }
+
+function createProfile() {
+  const nick = document.getElementById('nick-input').value.trim();
+  const err = document.getElementById('nick-err');
+  if (!nick) { err.textContent = T('errEmpty'); return; }
+  if (nick.length < 2) { err.textContent = T('errShort'); return; }
+  err.textContent = '';
+  lsSet('bs_profile', JSON.stringify({ nick, bestScore: 0, bestLevel: 0, created: Date.now() }));
+  lsSet('bs_mode', 'profile');
+  applyLang();
+  show('menu');
+}
+
+function resetProfile() {
+  if (!confirm(T('confirmReset'))) return;
+  lsDel('bs_profile'); lsDel('bs_mode');
+  applyLang();
+  show('welcome');
+}
+
+function openGame(file) { location.href = file + '?lang=' + lang; }
+
+document.getElementById('nick-input').addEventListener('keydown', e => { if (e.key === 'Enter') createProfile(); });
+
+// Old direct links like /?lang=en (e.g. the portfolio embed) still open the game itself
+(function () {
+  const q = new URLSearchParams(location.search);
+  const l = q.get('lang');
+  if ((l === 'en' || l === 'ua') && q.get('menu') !== '1') location.replace('buckwheat.html?lang=' + l);
+})();
+
+applyLang();
+const wantsMenu = new URLSearchParams(location.search).get('menu') === '1' && lsGet('bs_mode');
+if (wantsMenu) { renderMenu(); show('menu'); } else { show('welcome'); }
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+}
+</script>
+</body>
+</html>
